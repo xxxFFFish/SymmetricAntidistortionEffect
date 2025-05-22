@@ -1,0 +1,7 @@
+# Godot 4+ specific ignores
+map_texture/
+
+raw_data/*.npy
+raw_data/*.csv
+raw_data/*.png
+!raw_data/distortion_raw_data.csv
