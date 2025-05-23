@@ -23,6 +23,8 @@ g_screen_height = 1080
 g_pixel_scale = 0.01 # micrometer. It must be carried out in conjunction with distortion model.
 g_map_model = 'keep_center' # keep_center, expand_edge, custom
 g_texture_model = 'minisize' # minisize, balance, free
+g_split = False
+g_save_format = 'png' # png, gz
 
 # Process parameters
 g_center_shift_x = 0.0
@@ -36,12 +38,15 @@ def parse_cmd():
     global g_pixel_scale
     global g_map_model
     global g_texture_model
+    global g_split
+    global g_save_format
 
     width = 0
     height = 0
     scale = 0.0
     m_model = ''
     t_model = ''
+    s_format = ''
 
     for cmd in sys.argv[1:]: # ignore argv[0]
         cmd_collection = cmd.split('=')
@@ -57,7 +62,11 @@ def parse_cmd():
                 m_model = cmd_collection[1]
             elif cmd_collection[0] == 'texture_model' or cmd_collection[0] == 't_model':
                 t_model = cmd_collection[1]
-    
+            elif cmd_collection[0] == 'split' and cmd_collection[1] == '1':
+                g_split = True
+            elif cmd_collection[0] == 'texture_format' or cmd_collection[0] == 'save_format':
+                s_format = cmd_collection[1]
+
     if width > 0 and height > 0:
         g_screen_width = width
         g_screen_height = height
@@ -70,6 +79,9 @@ def parse_cmd():
 
     if t_model == 'minisize' or t_model == 'balance' or t_model == 'free':
         g_texture_model = t_model
+    
+    if s_format == 'png' or m_model == 'gz':
+        g_save_format = s_format
 
 def get_polyfit_coeffs():
     file_path = g_polyfit_coeffs_file_path + '/' + g_polyfit_coeffs_file_name
@@ -171,12 +183,23 @@ def get_antidistortion_map_texture_based_on_balance(coeffs: np.ndarray):
 
     for y in range(0, texture_height):
         for x in range(0, texture_width):
-            r_preset = get_r_from_pixel(x, y)
-            r_map = g_tan_factor*poly(r_preset)
-            ratio = r_map / r_preset
+            if g_split:
+                r_preset = get_r_from_pixel(2*x, y)
+                r_map = g_tan_factor*poly(r_preset)
+                ratio = r_map / r_preset
 
-            uv = float(x) / float(g_screen_width - 1)
-            uv = (uv - 0.5)*ratio + 0.5
+                uv = float(2*x) / float(g_screen_width - 1)
+                uv = ((uv - 0.5)*ratio + 0.5)*0.5
+                if uv > 0.5:
+                    uv += 0.5
+            else:
+                r_preset = get_r_from_pixel(x, y)
+                r_map = g_tan_factor*poly(r_preset)
+                ratio = r_map / r_preset
+
+                uv = float(x) / float(g_screen_width - 1)
+                uv = (uv - 0.5)*ratio + 0.5
+
             uv_bytes = np.float32(uv).view(np.uint32).tobytes()
             texture[y, x, 0] = uv_bytes[0]
             texture[y, x, 1] = uv_bytes[1]
@@ -205,14 +228,25 @@ def get_antidistortion_map_texture_based_on_free(coeffs: np.ndarray):
 
     for y in range(0, texture_height):
         for x in range(0, texture_width):
-            r_preset = get_r_from_pixel(x, y)
-            r_map = g_tan_factor*poly(r_preset)
-            ratio = r_map / r_preset
+            if g_split:
+                r_preset = get_r_from_pixel(2*x, y)
+                r_map = g_tan_factor*poly(r_preset)
+                ratio = r_map / r_preset
+
+                uv = float(2*x) / float(g_screen_width - 1)
+                uv = ((uv - 0.5)*ratio + 0.5)*0.5
+                if uv > 0.5:
+                    uv += 0.5
+            else:
+                r_preset = get_r_from_pixel(x, y)
+                r_map = g_tan_factor*poly(r_preset)
+                ratio = r_map / r_preset
+
+                uv = float(x) / float(g_screen_width - 1)
+                uv = (uv - 0.5)*ratio + 0.5
 
             # Store UV.x
             # Top-Left area
-            uv = float(x) / float(g_screen_width - 1)
-            uv = (uv - 0.5)*ratio + 0.5
             uv_bytes = np.float32(uv).view(np.uint32).tobytes()
             texture[y, x, 0] = uv_bytes[0]
             texture[y, x, 1] = uv_bytes[1]
@@ -291,17 +325,25 @@ def save_texture(file_name: str, texture: np.ndarray):
         os.makedirs(g_save_map_folder)
 
     file_full_name = file_name + '_' + g_map_model + '_' + g_texture_model
+    if g_texture_model != 'minisize' and g_split:
+        file_full_name += '_split'
 
     # Save texture as compressed bin file
-    save_file_name = g_save_map_folder + '/' + file_full_name + '.gz'
+    if g_save_format == 'gz':
+        save_file_name = g_save_map_folder + '/' + file_full_name + '.gz'
 
-    with gzip.open(save_file_name, 'wb') as f:
-        f.write(texture)
+        with gzip.open(save_file_name, 'wb') as f:
+            f.write(texture)
+        
+        print('Save %s success' % (save_file_name))
 
     # Save texture as png
-    save_file_name = g_save_map_folder + '/' + file_full_name + '.png'
-    bgra_texture = cv2.cvtColor(texture, cv2.COLOR_RGBA2BGRA) # Default color order in OpenCV is BGR
-    cv2.imwrite(save_file_name, bgra_texture)
+    if g_save_format == 'png':
+        save_file_name = g_save_map_folder + '/' + file_full_name + '.png'
+        bgra_texture = cv2.cvtColor(texture, cv2.COLOR_RGBA2BGRA) # Default color order in OpenCV is BGR
+        cv2.imwrite(save_file_name, bgra_texture)
+
+        print('Save %s success' % (save_file_name))
 
 
 if __name__ == '__main__':
@@ -316,6 +358,8 @@ if __name__ == '__main__':
     print('Pixel scale: %f' % (g_pixel_scale))
     print('Map model: %s' % (g_map_model))
     print('Texture model: %s' % (g_texture_model))
+    print('Split: %s' % (g_split))
+    print('Save format: %s' % (g_save_format))
 
     # Preset parameters
     g_center_shift_x = (g_screen_width - 1)*0.5

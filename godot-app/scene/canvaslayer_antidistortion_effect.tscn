@@ -18,7 +18,6 @@ enum TextureModelType {MINISIZE, BALANCE, FREE}
 
 @export_category(\"Balance Texture model\")
 @export var effect_mask_balance_material: ShaderMaterial
-@export var effect_mask_balance_split_material: ShaderMaterial
 
 @export_category(\"Free Texture model\")
 @export var effect_mask_Free_material: ShaderMaterial
@@ -54,18 +53,30 @@ func get_map_texture_path(
 		TextureModelType.BALANCE:
 			match map_model:
 				MapModelType.KEEP_CENTER:
-					return \"res://map_texture/map_keep_center_balance.png\"
+					if split:
+						return \"res://map_texture/map_keep_center_balance_split.png\"
+					else:
+						return \"res://map_texture/map_keep_center_balance.png\"
 				
 				MapModelType.EXPAND_EDGE:
-					return \"res://map_texture/map_expand_edge_balance.png\"
+					if split:
+						return \"res://map_texture/map_expand_edge_balance_split.png\"
+					else:
+						return \"res://map_texture/map_expand_edge_balance.png\"
 		
 		TextureModelType.FREE:
 			match map_model:
 				MapModelType.KEEP_CENTER:
-					return \"res://map_texture/map_keep_center_free.png\"
+					if split:
+						return \"res://map_texture/map_keep_center_free_split.png\"
+					else:
+						return \"res://map_texture/map_keep_center_free.png\"
 				
 				MapModelType.EXPAND_EDGE:
-					return \"res://map_texture/map_expand_edge_free.png\"
+					if split:
+						return \"res://map_texture/map_expand_edge_free_split.png\"
+					else:
+						return \"res://map_texture/map_expand_edge_free.png\"
 	
 	return \"\"
 
@@ -83,10 +94,7 @@ func load_effect_mask_material(
 				material = effect_mask_minisize_material
 		
 		TextureModelType.BALANCE:
-			if split:
-				material = effect_mask_balance_split_material
-			else:
-				material = effect_mask_balance_material
+			material = effect_mask_balance_material
 		
 		TextureModelType.FREE:
 			material = effect_mask_Free_material
