@@ -1,0 +1,125 @@
+[gd_scene load_steps=6 format=3 uid="uid://bdna3e3i5g6tx"]
+
+[ext_resource type="Material" uid="uid://dtmprmhrparbn" path="res://material/effect_mask/shader_material_effect_mask_minisize.tres" id="1_8lrao"]
+[ext_resource type="Material" uid="uid://b2yioflg8d7ni" path="res://material/effect_mask/shader_material_effect_mask_minisize_split.tres" id="2_tv0wt"]
+[ext_resource type="Material" uid="uid://bc3lw7ujt6ve7" path="res://material/effect_mask/shader_material_effect_mask_balance.tres" id="3_34khe"]
+[ext_resource type="Material" uid="uid://cosimln5bk4wc" path="res://material/effect_mask/shader_material_effect_mask_free.tres" id="4_jnp62"]
+
+[sub_resource type="GDScript" id="GDScript_tv0wt"]
+resource_name = "canvaslayer_antidistortion_effect"
+script/source = "extends CanvasLayer
+
+enum MapModelType {KEEP_CENTER, EXPAND_EDGE}
+enum TextureModelType {MINISIZE, BALANCE, FREE}
+
+@export_category(\"Minisize Texture model\")
+@export var effect_mask_minisize_material: ShaderMaterial
+@export var effect_mask_minisize_split_material: ShaderMaterial
+
+@export_category(\"Balance Texture model\")
+@export var effect_mask_balance_material: ShaderMaterial
+@export var effect_mask_balance_split_material: ShaderMaterial
+
+@export_category(\"Free Texture model\")
+@export var effect_mask_Free_material: ShaderMaterial
+
+var effect_mask: ColorRect
+
+func _ready() -> void:
+	effect_mask = self.get_node_or_null(\"%ColorRectEffectMask\")
+	if effect_mask == null:
+		printerr(\"Get effect mask failed!\")
+		return
+	
+	load_effect_mask_material(
+		MapModelType.KEEP_CENTER,
+		TextureModelType.MINISIZE,
+		false
+	)
+
+func get_map_texture_path(
+	map_model: MapModelType,
+	texture_model: TextureModelType,
+	split: bool
+) -> String:
+	match texture_model:
+		TextureModelType.MINISIZE:
+			match map_model:
+				MapModelType.KEEP_CENTER:
+					return \"res://map_texture/map_keep_center_minisize.png\"
+				
+				MapModelType.EXPAND_EDGE:
+					return \"res://map_texture/map_expand_edge_minisize.png\"
+		
+		TextureModelType.BALANCE:
+			match map_model:
+				MapModelType.KEEP_CENTER:
+					return \"res://map_texture/map_keep_center_balance.png\"
+				
+				MapModelType.EXPAND_EDGE:
+					return \"res://map_texture/map_expand_edge_balance.png\"
+		
+		TextureModelType.FREE:
+			match map_model:
+				MapModelType.KEEP_CENTER:
+					return \"res://map_texture/map_keep_center_free.png\"
+				
+				MapModelType.EXPAND_EDGE:
+					return \"res://map_texture/map_expand_edge_free.png\"
+	
+	return \"\"
+
+func load_effect_mask_material(
+	map_model: MapModelType,
+	texture_model: TextureModelType,
+	split: bool
+) -> void:
+	var material: ShaderMaterial = null
+	match texture_model:
+		TextureModelType.MINISIZE:
+			if split:
+				material = effect_mask_minisize_split_material
+			else:
+				material = effect_mask_minisize_material
+		
+		TextureModelType.BALANCE:
+			if split:
+				material = effect_mask_balance_split_material
+			else:
+				material = effect_mask_balance_material
+		
+		TextureModelType.FREE:
+			material = effect_mask_Free_material
+	
+	if material == null:
+		printerr(\"Get material failed!\")
+		return
+	
+	var map_texture_path: String = get_map_texture_path(map_model, texture_model, split)
+	var map_image: Image = load(map_texture_path)
+	if map_image == null:
+		printerr(\"Get map texture failed!\")
+		return
+	
+	var map_texture: ImageTexture = ImageTexture.create_from_image(map_image)
+	material.set_shader_parameter(\"Map\", map_texture)
+	
+	effect_mask.material = material
+"
+
+[node name="CanvaslayerAntidistortionEffect" type="CanvasLayer"]
+layer = 20
+script = SubResource("GDScript_tv0wt")
+effect_mask_minisize_material = ExtResource("1_8lrao")
+effect_mask_minisize_split_material = ExtResource("2_tv0wt")
+effect_mask_balance_material = ExtResource("3_34khe")
+effect_mask_Free_material = ExtResource("4_jnp62")
+
+[node name="ColorRectEffectMask" type="ColorRect" parent="."]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)

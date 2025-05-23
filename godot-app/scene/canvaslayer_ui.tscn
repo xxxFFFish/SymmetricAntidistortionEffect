@@ -1,0 +1,120 @@
+[gd_scene load_steps=7 format=3 uid="uid://dqrv6eu8fv2gu"]
+
+[sub_resource type="GDScript" id="GDScript_lbo56"]
+resource_name = "canvaslayer_ui"
+script/source = "extends CanvasLayer
+
+var fps_label_list: Array[Label] = []
+
+func _ready() -> void:
+	var child = self.get_node_or_null(\"%LabelFPS8\")
+	if child != null and child is Label:
+		fps_label_list.append(child)
+	
+	child = self.get_node_or_null(\"%LabelFPS12\")
+	if child != null and child is Label:
+		fps_label_list.append(child)
+	
+	child = self.get_node_or_null(\"%LabelFPS16\")
+	if child != null and child is Label:
+		fps_label_list.append(child)
+	
+	child = self.get_node_or_null(\"%LabelFPS20\")
+	if child != null and child is Label:
+		fps_label_list.append(child)
+
+func _process(_delta) -> void:
+	var fps = Engine.get_frames_per_second()
+	var fps_str = String.num(fps, 2)
+	for label in fps_label_list:
+		label.text = fps_str
+"
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lbo56"]
+bg_color = Color(0, 0, 0, 0)
+
+[sub_resource type="LabelSettings" id="LabelSettings_7rkuw"]
+font_size = 8
+outline_size = 4
+outline_color = Color(0, 0, 0, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_ou0ka"]
+font_size = 12
+outline_size = 6
+outline_color = Color(0, 0, 0, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_sblfq"]
+outline_size = 8
+outline_color = Color(0, 0, 0, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_lbo56"]
+font_size = 20
+outline_size = 10
+outline_color = Color(0, 0, 0, 1)
+
+[node name="CanvaslayerUi" type="CanvasLayer"]
+layer = 10
+script = SubResource("GDScript_lbo56")
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="GridContainer" type="GridContainer" parent="CenterContainer"]
+layout_mode = 2
+columns = 2
+
+[node name="PanelContainerFPS8" type="PanelContainer" parent="CenterContainer/GridContainer"]
+custom_minimum_size = Vector2(60, 32)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_lbo56")
+
+[node name="LabelFPS8" type="Label" parent="CenterContainer/GridContainer/PanelContainerFPS8" groups=["label_fps"]]
+unique_name_in_owner = true
+layout_mode = 2
+text = "00.00"
+label_settings = SubResource("LabelSettings_7rkuw")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PanelContainerFPS12" type="PanelContainer" parent="CenterContainer/GridContainer"]
+custom_minimum_size = Vector2(60, 32)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_lbo56")
+
+[node name="LabelFPS12" type="Label" parent="CenterContainer/GridContainer/PanelContainerFPS12" groups=["label_fps"]]
+unique_name_in_owner = true
+layout_mode = 2
+text = "00.00"
+label_settings = SubResource("LabelSettings_ou0ka")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PanelContainerFPS16" type="PanelContainer" parent="CenterContainer/GridContainer"]
+custom_minimum_size = Vector2(60, 32)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_lbo56")
+
+[node name="LabelFPS16" type="Label" parent="CenterContainer/GridContainer/PanelContainerFPS16" groups=["label_fps"]]
+unique_name_in_owner = true
+layout_mode = 2
+text = "00.00"
+label_settings = SubResource("LabelSettings_sblfq")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PanelContainerFPS20" type="PanelContainer" parent="CenterContainer/GridContainer"]
+custom_minimum_size = Vector2(60, 32)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_lbo56")
+
+[node name="LabelFPS20" type="Label" parent="CenterContainer/GridContainer/PanelContainerFPS20" groups=["label_fps"]]
+unique_name_in_owner = true
+layout_mode = 2
+text = "00.00"
+label_settings = SubResource("LabelSettings_lbo56")
+horizontal_alignment = 1
+vertical_alignment = 1

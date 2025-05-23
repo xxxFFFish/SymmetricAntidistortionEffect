@@ -1,0 +1,8 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://bc3lw7ujt6ve7"]
+
+[ext_resource type="Shader" uid="uid://dhs3agotjtc3n" path="res://material/effect_mask/shader_effect_mask_balance.gdshader" id="1_4vllw"]
+
+[resource]
+shader = ExtResource("1_4vllw")
+shader_parameter/ScreenResolution = Vector2i(1920, 1080)
+shader_parameter/VerticalShift = 420
