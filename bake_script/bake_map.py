@@ -9,24 +9,25 @@ import cv2
 
 
 # Auxiliary Variates
-g_cutline = '--------------------------------' + '--------------------------------'
+CUTLINE = '--------------------------------' + '--------------------------------'
 
-# Base parameters
-g_polyfit_coeffs_file_path = 'raw_data'
-g_polyfit_coeffs_file_name = 'polyfit_coeffs_with_real_r_to_tan_r.npy'
-g_fit_script = 'fit_data.py'
-g_save_map_name = 'map' # Final name is g_save_map_name + g_map_model + g_texture_model
-g_save_map_folder = 'map_texture'
+# Constants
+POLYFIT_COEFFS_FILE_PATH = 'raw_data'
+POLYFIT_COEFFS_FILE_NAME = 'polyfit_coeffs_with_real_r_to_tan_r.npy'
+FIT_SCRIPT = 'fit_data.py'
+SAVE_MAP_NAME = 'map' # Final name is SAVE_MAP_NAME + g_map_model + g_texture_model
+SAVE_MAP_FOLDER = 'map_texture'
 
+# Setting Variates
 g_screen_width = 1920
 g_screen_height = 1080
-g_pixel_scale = 0.01 # micrometer. It must be carried out in conjunction with distortion model.
+g_pixel_scale = 0.01 # Micrometer dimension. It must be carried out in conjunction with distortion model.
 g_map_model = 'keep_center' # keep_center, expand_edge, custom
 g_texture_model = 'minisize' # minisize, balance, free
 g_split = False
 g_save_format = 'png' # png, gz
 
-# Process parameters
+# Process Variates
 g_center_shift_x = 0.0
 g_center_shift_y = 0.0
 g_tan_factor = 0.1
@@ -84,14 +85,14 @@ def parse_cmd():
         g_save_format = s_format
 
 def get_polyfit_coeffs():
-    file_path = g_polyfit_coeffs_file_path + '/' + g_polyfit_coeffs_file_name
+    file_path = POLYFIT_COEFFS_FILE_PATH + '/' + POLYFIT_COEFFS_FILE_NAME
 
     if os.path.isfile(file_path):
         coeffs = np.load(file_path)
         return coeffs
     else:
         # Find none polyfit coeffs file, need to execute fit script.
-        subprocess.run(['python', g_fit_script, 'order=real_r_to_tan_r'], cwd=g_polyfit_coeffs_file_path)
+        subprocess.run(['python', FIT_SCRIPT, 'order=real_r_to_tan_r'], cwd=POLYFIT_COEFFS_FILE_PATH)
 
     if os.path.isfile(file_path):
         coeffs = np.load(file_path)
@@ -321,8 +322,8 @@ def get_antidistortion_map_texture(coeffs: np.ndarray):
         return np.array([])
 
 def save_texture(file_name: str, texture: np.ndarray):
-    if not os.path.exists(g_save_map_folder):
-        os.makedirs(g_save_map_folder)
+    if not os.path.exists(SAVE_MAP_FOLDER):
+        os.makedirs(SAVE_MAP_FOLDER)
 
     file_full_name = file_name + '_' + g_map_model + '_' + g_texture_model
     if g_texture_model != 'minisize' and g_split:
@@ -330,7 +331,7 @@ def save_texture(file_name: str, texture: np.ndarray):
 
     # Save texture as compressed bin file
     if g_save_format == 'gz':
-        save_file_name = g_save_map_folder + '/' + file_full_name + '.gz'
+        save_file_name = SAVE_MAP_FOLDER + '/' + file_full_name + '.gz'
 
         with gzip.open(save_file_name, 'wb') as f:
             f.write(texture)
@@ -339,7 +340,7 @@ def save_texture(file_name: str, texture: np.ndarray):
 
     # Save texture as png
     if g_save_format == 'png':
-        save_file_name = g_save_map_folder + '/' + file_full_name + '.png'
+        save_file_name = SAVE_MAP_FOLDER + '/' + file_full_name + '.png'
         bgra_texture = cv2.cvtColor(texture, cv2.COLOR_RGBA2BGRA) # Default color order in OpenCV is BGR
         cv2.imwrite(save_file_name, bgra_texture)
 
@@ -347,7 +348,7 @@ def save_texture(file_name: str, texture: np.ndarray):
 
 
 if __name__ == '__main__':
-    print(g_cutline)
+    print(CUTLINE)
     print('Start Bake Antidistortion Map')
     start_time = time.time()
 
@@ -372,11 +373,11 @@ if __name__ == '__main__':
 
         map_texture = get_antidistortion_map_texture(polyfit_coeffs)
         if map_texture.size > 0:
-            save_texture(g_save_map_name, map_texture)
+            save_texture(SAVE_MAP_NAME, map_texture)
         else:
             print('Bake map texture failed')
 
     consume_time = time.time() - start_time
     print('End Bake Antidistortion Map')
     print('Consume time: %.4fs' % (consume_time))
-    print(g_cutline)
+    print(CUTLINE)

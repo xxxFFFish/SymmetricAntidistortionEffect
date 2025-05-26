@@ -11,3 +11,5 @@
 [node name="CanvaslayerUi" parent="." instance=ExtResource("2_wp4xf")]
 
 [node name="CanvaslayerAntidistortionEffect" parent="." instance=ExtResource("3_wp4xf")]
+
+[connection signal="texture_model_changed" from="CanvaslayerAntidistortionEffect" to="CanvaslayerUi" method="_on_canvaslayer_antidistortion_effect_texture_model_changed"]

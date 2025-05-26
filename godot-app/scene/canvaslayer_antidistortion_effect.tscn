@@ -9,8 +9,7 @@
 resource_name = "canvaslayer_antidistortion_effect"
 script/source = "extends CanvasLayer
 
-enum MapModelType {KEEP_CENTER, EXPAND_EDGE}
-enum TextureModelType {MINISIZE, BALANCE, FREE}
+signal texture_model_changed(type: BaseType.TextureModelType)
 
 @export_category(\"Minisize Texture model\")
 @export var effect_mask_minisize_material: ShaderMaterial
@@ -24,55 +23,74 @@ enum TextureModelType {MINISIZE, BALANCE, FREE}
 
 var effect_mask: ColorRect
 
+var current_map_model: BaseType.MapModelType = BaseType.MapModelType.KEEP_CENTER
+var current_texture_model: BaseType.TextureModelType = BaseType.TextureModelType.MINISIZE
+var current_split: bool = false
+
 func _ready() -> void:
 	effect_mask = self.get_node_or_null(\"%ColorRectEffectMask\")
 	if effect_mask == null:
 		printerr(\"Get effect mask failed!\")
 		return
 	
-	load_effect_mask_material(
-		MapModelType.KEEP_CENTER,
-		TextureModelType.MINISIZE,
-		false
-	)
+	load_effect_mask_material()
+
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed(\"ui_left\"):
+		print_verbose(\"Left pressed\")
+		switch_map_model(true)
+	elif event.is_action_pressed(\"ui_right\"):
+		print_verbose(\"Right pressed\")
+		switch_map_model(false)
+	elif event.is_action_pressed(\"ui_up\"):
+		print_verbose(\"Up pressed\")
+		switch_texture_model(true)
+		texture_model_changed.emit(current_texture_model)
+	elif event.is_action_pressed(\"ui_down\"):
+		print_verbose(\"Down pressed\")
+		switch_texture_model(false)
+		texture_model_changed.emit(current_texture_model)
+	elif event.is_action_pressed(\"ui_accept\"):
+		print_verbose(\"Accept pressed\")
+		switch_split()
 
 func get_map_texture_path(
-	map_model: MapModelType,
-	texture_model: TextureModelType,
+	map_model: BaseType.MapModelType,
+	texture_model: BaseType.TextureModelType,
 	split: bool
 ) -> String:
 	match texture_model:
-		TextureModelType.MINISIZE:
+		BaseType.TextureModelType.MINISIZE:
 			match map_model:
-				MapModelType.KEEP_CENTER:
+				BaseType.MapModelType.KEEP_CENTER:
 					return \"res://map_texture/map_keep_center_minisize.png\"
 				
-				MapModelType.EXPAND_EDGE:
+				BaseType.MapModelType.EXPAND_EDGE:
 					return \"res://map_texture/map_expand_edge_minisize.png\"
 		
-		TextureModelType.BALANCE:
+		BaseType.TextureModelType.BALANCE:
 			match map_model:
-				MapModelType.KEEP_CENTER:
+				BaseType.MapModelType.KEEP_CENTER:
 					if split:
 						return \"res://map_texture/map_keep_center_balance_split.png\"
 					else:
 						return \"res://map_texture/map_keep_center_balance.png\"
 				
-				MapModelType.EXPAND_EDGE:
+				BaseType.MapModelType.EXPAND_EDGE:
 					if split:
 						return \"res://map_texture/map_expand_edge_balance_split.png\"
 					else:
 						return \"res://map_texture/map_expand_edge_balance.png\"
 		
-		TextureModelType.FREE:
+		BaseType.TextureModelType.FREE:
 			match map_model:
-				MapModelType.KEEP_CENTER:
+				BaseType.MapModelType.KEEP_CENTER:
 					if split:
 						return \"res://map_texture/map_keep_center_free_split.png\"
 					else:
 						return \"res://map_texture/map_keep_center_free.png\"
 				
-				MapModelType.EXPAND_EDGE:
+				BaseType.MapModelType.EXPAND_EDGE:
 					if split:
 						return \"res://map_texture/map_expand_edge_free_split.png\"
 					else:
@@ -80,39 +98,74 @@ func get_map_texture_path(
 	
 	return \"\"
 
-func load_effect_mask_material(
-	map_model: MapModelType,
-	texture_model: TextureModelType,
-	split: bool
-) -> void:
-	var material: ShaderMaterial = null
-	match texture_model:
-		TextureModelType.MINISIZE:
-			if split:
-				material = effect_mask_minisize_split_material
-			else:
-				material = effect_mask_minisize_material
-		
-		TextureModelType.BALANCE:
-			material = effect_mask_balance_material
-		
-		TextureModelType.FREE:
-			material = effect_mask_Free_material
-	
-	if material == null:
-		printerr(\"Get material failed!\")
-		return
-	
-	var map_texture_path: String = get_map_texture_path(map_model, texture_model, split)
+func load_map_texture() -> void:
+	var map_texture_path: String = get_map_texture_path(
+		current_map_model,
+		current_texture_model,
+		current_split
+	)
 	var map_image: Image = load(map_texture_path)
 	if map_image == null:
 		printerr(\"Get map texture failed!\")
 		return
 	
 	var map_texture: ImageTexture = ImageTexture.create_from_image(map_image)
-	material.set_shader_parameter(\"Map\", map_texture)
+
+	if effect_mask != null:
+		effect_mask.material.set_shader_parameter(\"Map\", map_texture)
+
+func load_effect_mask_material() -> void:
+	var material: ShaderMaterial = null
+	match current_texture_model:
+		BaseType.TextureModelType.MINISIZE:
+			if current_split:
+				material = effect_mask_minisize_split_material
+			else:
+				material = effect_mask_minisize_material
+		
+		BaseType.TextureModelType.BALANCE:
+			material = effect_mask_balance_material
+		
+		BaseType.TextureModelType.FREE:
+			material = effect_mask_Free_material
+	
+	if material == null:
+		printerr(\"Get material failed!\")
+		return
 	
 	effect_mask.material = material
+	
+	load_map_texture()
+
+func switch_map_model(previous: bool = false) -> void:
+	var map_model_index = int(current_map_model)
+	if previous:
+		map_model_index += int(BaseType.MapModelType.MAX) - 1
+	else:
+		map_model_index += 1
+	
+	map_model_index %= BaseType.MapModelType.MAX
+	current_map_model = BaseType.MapModelType.values()[map_model_index]
+	load_map_texture()
+
+func switch_texture_model(previous: bool = false) -> void:
+	var texture_model_index = int(current_texture_model)
+	if previous:
+		texture_model_index += int(BaseType.TextureModelType.MAX) - 1
+	else:
+		texture_model_index += 1
+	
+	texture_model_index %= BaseType.TextureModelType.MAX
+	current_texture_model = BaseType.TextureModelType.values()[texture_model_index]
+	load_effect_mask_material()
+
+func switch_split() -> void:
+	current_split = not current_split
+	
+	if current_texture_model == BaseType.TextureModelType.MINISIZE:
+		load_effect_mask_material()
+	else:
+		load_map_texture()
 "
 
 [node name="CanvaslayerAntidistortionEffect" type="CanvasLayer"]
