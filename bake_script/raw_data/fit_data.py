@@ -1,5 +1,6 @@
-import sys
+import os
 import time
+import argparse
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,26 +16,16 @@ RESULT_SAVE_NAME_1 = 'polyfit_coeffs_with_tan_r_to_real_r'
 RESULT_SAVE_NAME_2 = 'polyfit_coeffs_with_real_r_to_tan_r'
 
 # Process Variates
-g_fit_order = 0 # 1 is tan_r to real_r, 2 is real_r to tan_r
+g_args = None
 
 
-def parse_cmd():
-    global g_fit_order
+def parse_argument():
+    global g_args
 
-    order = ''
+    parser = argparse.ArgumentParser(description='fit data')
+    parser.add_argument('-O', '--order', type=str, choices=('tan_r_to_real_r', 'real_r_to_tan_r'), help='fit order')
 
-    for cmd in sys.argv[1:]: # ignore argv[0]
-        cmd_collection = cmd.split('=')
-        if len(cmd_collection) > 1:
-            cmd_collection[0].lower()
-            if cmd_collection[0] == 'order' or cmd_collection[0] == 'direction':
-                order = cmd_collection[1]
-    
-    if order == 'tan_r_to_real_r':
-        g_fit_order = 1
-    elif order == 'real_r_to_tan_r':
-        g_fit_order = 2
-
+    g_args = parser.parse_args()
 
 def get_distortion_raw_data():
     data_csv = pd.read_csv(DATA_FILE_NAME)
@@ -75,13 +66,14 @@ if __name__ == '__main__':
     print('Start Fit Data Process')
     start_time = time.time()
 
-    if len(sys.argv) > 1:
-        parse_cmd()
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+    parse_argument()
 
     tan_r_array, real_r_array = get_distortion_raw_data()
 
     # Fit tan_r to real_r curve and save
-    if g_fit_order == 0 or g_fit_order == 1:
+    if g_args.order == 'tan_r_to_real_r':
         coeffs = fit_with_polyfit(tan_r_array, real_r_array)
         np.save(RESULT_SAVE_NAME_1 + '.npy', coeffs) # Save as numpy array file
 
@@ -92,7 +84,7 @@ if __name__ == '__main__':
         show_result_figure(tan_r_array, real_r_array, coeffs, 'tan r', 'real r', RESULT_SAVE_NAME_1)
 
     # Fit real_r to tan_r curve and save
-    if g_fit_order == 0 or g_fit_order == 2:
+    if g_args.order ==  'real_r_to_tan_r':
         coeffs = fit_with_polyfit(real_r_array, tan_r_array)
         np.save(RESULT_SAVE_NAME_2 + '.npy', coeffs) # Save as numpy array file
 

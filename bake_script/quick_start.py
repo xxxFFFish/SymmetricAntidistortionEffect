@@ -24,17 +24,27 @@ g_bake_count = 0
 def run_bake(m_model: str, t_model: str, split: bool):
     global g_bake_count
 
-    subprocess.run([
-        'python',
-        BAKE_SCRIPT,
-        'width=' + g_screen_width,
-        'height=' + g_screen_height,
-        'scale=' + g_pixel_scale,
-        'm_model=' + m_model,
-        't_model=' + t_model,
-        'split=' + '1' if split else '0',
-        'save_format=' + g_save_format
-    ])
+    if split:
+        subprocess.run([
+            'python',
+            BAKE_SCRIPT,
+            '-F', g_save_format,
+            '-R', g_screen_width, g_screen_height,
+            '-P', g_pixel_scale,
+            '-M', m_model,
+            '-T', t_model,
+            '-S'
+        ])
+    else:
+        subprocess.run([
+            'python',
+            BAKE_SCRIPT,
+            '-F', g_save_format,
+            '-R', g_screen_width, g_screen_height,
+            '-P', g_pixel_scale,
+            '-M', m_model,
+            '-T', t_model
+        ])
 
     g_bake_count += 1
     print('Complete baking map with %s %s%s' % (m_model, t_model, ' split' if split else ''))
