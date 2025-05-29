@@ -5,3 +5,6 @@ raw_data/*.npy
 raw_data/*.csv
 raw_data/*.png
 !raw_data/distortion_raw_data.csv
+
+test_image/input/
+test_image/output/
