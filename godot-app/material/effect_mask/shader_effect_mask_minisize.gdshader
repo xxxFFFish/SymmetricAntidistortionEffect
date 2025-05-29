@@ -1,7 +1,4 @@
-[gd_resource type="Shader" format=3 uid="uid://cx56lrlwcy15i"]
-
-[resource]
-code = "shader_type canvas_item;
+shader_type canvas_item;
 
 uniform ivec2 ScreenResolution = ivec2(1920, 1080);
 uniform int VerticalShift = 420;
@@ -38,4 +35,3 @@ void fragment() {
 		vec4(0.0, 0.0, 0.0, 1.0) :
 		texture(ScreenTexture, _uv);
 }
-"
