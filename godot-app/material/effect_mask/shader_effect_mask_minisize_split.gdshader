@@ -1,7 +1,7 @@
 shader_type canvas_item;
 
 uniform ivec2 ScreenResolution = ivec2(1920, 1080);
-uniform int VerticalShift = 420;
+uniform int MapShift = 420;
 uniform sampler2D ScreenTexture : hint_screen_texture;
 
 uniform sampler2D Map;
@@ -17,12 +17,12 @@ void fragment() {
 	ivec2 map_coordinate = (ivec2(1) - 2 * coef) * raw_coordinate +
 		coef * (ScreenResolution - ivec2(1));
 	
-	coef.x = min(1, (map_coordinate.y + VerticalShift + 1) / (map_coordinate.x + 1));
+	coef.x = min(1, (map_coordinate.y + MapShift + 1) / (map_coordinate.x + 1));
 	coef.y = 1 - coef.x;
 	
 	map_coordinate = ivec2(
-		coef.x * map_coordinate.x + coef.y * (map_coordinate.y + VerticalShift),
-		coef.y * (map_coordinate.x - VerticalShift) + coef.x * map_coordinate.y
+		coef.x * map_coordinate.x + coef.y * (map_coordinate.y + MapShift),
+		coef.y * (map_coordinate.x - MapShift) + coef.x * map_coordinate.y
 	);
 	
 	uvec4 data = uvec4(texelFetch(Map, map_coordinate, 0) * 255.0);

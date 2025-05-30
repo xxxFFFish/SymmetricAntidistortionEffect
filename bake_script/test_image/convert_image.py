@@ -23,8 +23,7 @@ VALID_IMAGE_FORMAT = {'.png', '.jpg', '.jpeg', '.bmp'}
 g_args = None
 g_width = 0
 g_height = 0
-g_texture_x_shift = 0
-g_texture_y_shift = 420
+g_map_shift = 0
 
 
 def parse_argument():
@@ -56,7 +55,13 @@ def get_map_texture():
         return np.array([])
 
 def get_map_shape(map_texture: np.ndarray):
-    return map_texture.shape[1]*2, map_texture.shape[0]*2
+    global g_width
+    global g_height
+    global g_map_shift
+
+    g_width = map_texture.shape[1]*2
+    g_height = map_texture.shape[0]*2
+    g_map_shift = (g_width - g_height) // 2
 
 def cut_image(image: np.ndarray):
     result = np.full((g_height, g_width, 4), (0, 0, 0, 255), dtype=np.uint8)
@@ -144,11 +149,14 @@ def convert_image(map_texture: np.ndarray, image: np.ndarray):
     flip_x = (1 - 2*coef_x)*x + coef_x*(g_width - 1)
     flip_y = (1 - 2*coef_y)*y + coef_y*(g_height - 1)
 
-    coef_x = np.minimum(1, (flip_y + g_texture_y_shift + 1) // (flip_x + 1))
+    if g_map_shift >= 0 :
+        coef_x = np.minimum(1, (flip_y + g_map_shift + 1) // (flip_x + 1)) # width >= height
+    else:
+        coef_x = np.minimum(1, (flip_x - g_map_shift + 1) // (flip_y + 1)) # width < height
     coef_y = 1 - coef_x
 
-    sample_x = coef_x*flip_x + coef_y*(flip_y + g_texture_y_shift)
-    sample_y = coef_y*(flip_x - g_texture_y_shift) + coef_x*flip_y
+    sample_x = coef_x*flip_x + coef_y*(flip_y + g_map_shift)
+    sample_y = coef_y*(flip_x - g_map_shift) + coef_x*flip_y
 
     map_data = map_texture[sample_y, sample_x]
 
@@ -180,11 +188,14 @@ def convert_split_image(map_texture: np.ndarray, image: np.ndarray):
     flip_x = (1 - 2*coef_x)*_x + coef_x*(g_width - 1)
     flip_y = (1 - 2*coef_y)*y + coef_y*(g_height - 1)
 
-    coef_x = np.minimum(1, (flip_y + g_texture_y_shift + 1) // (flip_x + 1))
+    if g_map_shift >= 0 :
+        coef_x = np.minimum(1, (flip_y + g_map_shift + 1) // (flip_x + 1)) # width >= height
+    else:
+        coef_x = np.minimum(1, (flip_x - g_map_shift + 1) // (flip_y + 1)) # width < height
     coef_y = 1 - coef_x
 
-    sample_x = coef_x*flip_x + coef_y*(flip_y + g_texture_y_shift)
-    sample_y = coef_y*(flip_x - g_texture_y_shift) + coef_x*flip_y
+    sample_x = coef_x*flip_x + coef_y*(flip_y + g_map_shift)
+    sample_y = coef_y*(flip_x - g_map_shift) + coef_x*flip_y
 
     map_data = map_texture[sample_y, sample_x]
 
@@ -198,8 +209,8 @@ def convert_split_image(map_texture: np.ndarray, image: np.ndarray):
     # This is equivalent to the logic of 
     # lessThan(_uv, vec2(0.0 + f_side_flag, 0.0) and greaterThan(_uv, vec2(0.5 + f_side_flag, 1.0) in the shader.
     side_border = float(g_width // 2)
-    np.putmask(map_x, (side_flag == 0) & (map_x > (side_border - 1.0)), map_x + side_border)
-    np.putmask(map_x, (side_flag == 1) & (map_x < side_border), map_x - side_border)
+    np.putmask(map_x, (side_flag == 0) & (map_x > (side_border - 1.0)), map_x + side_border + 1)
+    np.putmask(map_x, (side_flag == 1) & (map_x < side_border), map_x - side_border - 1)
 
     map_y = (y.astype(np.float32) - center_y) * map_data + center_y
 
@@ -232,7 +243,7 @@ if __name__ == '__main__':
 
     parse_argument()
     map_texture = get_map_texture()
-    g_width, g_height = get_map_shape(map_texture)
+    get_map_shape(map_texture)
     print('Map shape: %dx%d' % (g_width, g_height))
 
     images = get_source_image()

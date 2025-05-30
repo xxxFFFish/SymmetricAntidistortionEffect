@@ -79,21 +79,19 @@ def get_tan_factor_based_on_keeping_center(coeffs: np.ndarray):
     return 1.0 / deriv_center
 
 def get_tan_factor_based_on_expanding_edge(coeffs: np.ndarray):
-    r_edge = 0.0
-
-    if g_args.resolution[0] > g_args.resolution[1]:
-        r_edge = get_r_from_pixel(g_args.resolution[0] / 2, 0)
-    else:
-        r_edge = get_r_from_pixel(0, g_args.resolution[1] / 2)
-
     poly = np.poly1d(coeffs)
-    tan_r_edge = poly(r_edge)
+
+    r_edge_x = get_r_from_pixel(0, g_args.resolution[1] / 2)
+    tan_r_edge_x = poly(r_edge_x)
+
+    r_edge_y = get_r_from_pixel(g_args.resolution[0] / 2, 0)
+    tan_r_edge_y = poly(r_edge_y)
 
     # tan_r_edge = r_edge_map / tan_factor
     # expand edge to screen edge: r_edge_map = r_edge
     # tan_factor = r_edge / tan_r_edge
 
-    return r_edge / tan_r_edge
+    return max(r_edge_x / tan_r_edge_x, r_edge_y / tan_r_edge_y)
 
 def get_tan_factor(coeffs: np.ndarray):
     if g_args.map_model == 'keep_center':
@@ -118,10 +116,10 @@ def get_antidistortion_map_texture_based_on_minisize(coeffs: np.ndarray):
 
     for y in range(0, texture_height):
         for x in range(0, texture_width):
-            if filter_refrence >= 0 and x > y + filter_refrence:
-                continue
-
-            if filter_refrence <= 0 and x - filter_refrence < y:
+            if filter_refrence >= 0:
+                if x > y + filter_refrence:
+                    continue
+            elif x - filter_refrence < y:
                 continue
 
             r_preset = get_r_from_pixel(x, y)
