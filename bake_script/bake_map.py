@@ -22,7 +22,10 @@ SAVE_MAP_FOLDER = 'map_texture'
 g_args = None
 g_center_shift_x = 0.0
 g_center_shift_y = 0.0
-g_tan_factor = 0.1
+
+g_tan_factor_base = 0.1
+g_tan_factor_edge = 0.0
+g_tan_factor_growth = 0.0
 
 
 def parse_argument():
@@ -37,9 +40,12 @@ def parse_argument():
     group.add_argument('-P', '--pixel-pitch', metavar='', type=float, default=0.01, help='screen pixel pitch with micrometer dimension [default: 0.01]')
 
     group = parser.add_argument_group('map texture parameters')
-    group.add_argument('-M', '--map-model', metavar='', type=str, choices=('keep_center', 'expand_edge', 'custom'), default='keep_center', help='map model [keep_center(default), expand_edge, custom]')
+    group.add_argument('-M', '--map-model', metavar='', type=str, choices=('keep_center', 'expand_edge', 'transition', 'expand_forward'), default='keep_center', help='map model [keep_center(default), expand_edge, transition, expand_forward]')
     group.add_argument('-T', '--texture-model', metavar='', type=str, choices=('minisize', 'balance', 'free'), default='minisize', help='texture model [minisize(default), balance, free]')
     group.add_argument('-S', '--split', action='store_true', help='is split?')
+
+    group = parser.add_argument_group('other parameters')
+    group.add_argument('--expand-limited-ratio', metavar='', type=float, default=0.9, help='limit expand ratio in expand forward map model [default: 0.9]')
 
     g_args = parser.parse_args()
 
@@ -93,15 +99,98 @@ def get_tan_factor_based_on_expanding_edge(coeffs: np.ndarray):
 
     return max(r_edge_x / tan_r_edge_x, r_edge_y / tan_r_edge_y)
 
-def get_tan_factor(coeffs: np.ndarray):
-    if g_args.map_model == 'keep_center':
-        return get_tan_factor_based_on_keeping_center(coeffs)
-    elif g_args.map_model == 'expand_edge':
-        return get_tan_factor_based_on_expanding_edge(coeffs)
-    elif g_args.map_model == 'custom':
-        return 0.1 # Custom map model is TBD
+def get_tan_factor_based_on_transition(coeffs: np.ndarray):
+    poly = np.poly1d(coeffs)
+
+    tan_factor_base = 1.0 / poly.deriv(m=1)(0)
+    tan_factor_edge = 0.0
+    edge_r = 0.0
+
+    r_edge_x = get_r_from_pixel(0, g_args.resolution[1] / 2)
+    tan_r_edge_x = poly(r_edge_x)
+
+    r_edge_y = get_r_from_pixel(g_args.resolution[0] / 2, 0)
+    tan_r_edge_y = poly(r_edge_y)
+
+    tan_factor_edge_x = r_edge_x / tan_r_edge_x
+    tan_factor_edge_y = r_edge_y / tan_r_edge_y
+
+    if tan_factor_edge_x > tan_factor_edge_y:
+        tan_factor_edge = tan_factor_edge_x
+        edge_r = r_edge_x
     else:
-        return 0.1
+        tan_factor_edge = tan_factor_edge_y
+        edge_r = r_edge_y
+
+    growth = (tan_factor_edge - tan_factor_base) / edge_r
+
+    return tan_factor_base, edge_r, growth
+
+def get_tan_factor_based_on_expanding_forward(coeffs: np.ndarray):
+    poly = np.poly1d(coeffs)
+
+    tan_factor_base = 0.0
+    edge_r = 0.0
+
+    r_edge_x = get_r_from_pixel(0, g_args.resolution[1] / 2)
+    tan_r_edge_x = poly(r_edge_x)
+
+    r_edge_y = get_r_from_pixel(g_args.resolution[0] / 2, 0)
+    tan_r_edge_y = poly(r_edge_y)
+
+    tan_factor_edge_x = r_edge_x / tan_r_edge_x
+    tan_factor_edge_y = r_edge_y / tan_r_edge_y
+
+    if tan_factor_edge_x > tan_factor_edge_y:
+        tan_factor_base = tan_factor_edge_x
+        edge_r = r_edge_x
+    else:
+        tan_factor_base = tan_factor_edge_y
+        edge_r = r_edge_y
+    
+    r_vertex = get_r_from_pixel(0, 0)
+    growth = (g_args.expand_limited_ratio - 1.0) / (r_vertex - edge_r)
+
+    return tan_factor_base, edge_r, growth
+    
+
+def set_tan_factor(coeffs: np.ndarray):
+    global g_tan_factor_base
+    global g_tan_factor_edge
+    global g_tan_factor_growth
+
+    match g_args.map_model:
+        case 'keep_center':
+            g_tan_factor_base = get_tan_factor_based_on_keeping_center(coeffs)
+
+        case 'expand_edge':
+            g_tan_factor_base = get_tan_factor_based_on_expanding_edge(coeffs)
+
+        case 'transition':
+            g_tan_factor_base, g_tan_factor_edge, g_tan_factor_growth = get_tan_factor_based_on_transition(coeffs)
+
+        case 'expand_forward':
+            g_tan_factor_base, g_tan_factor_edge, g_tan_factor_growth = get_tan_factor_based_on_expanding_forward(coeffs)
+
+        case _:
+            g_tan_factor_base = 0.1
+
+def get_tan_factor(r: float):
+    match g_args.map_model:
+        case 'transition':
+            if r > g_tan_factor_edge:
+                r = g_tan_factor_edge
+
+            return g_tan_factor_base + g_tan_factor_growth*r
+
+        case 'expand_forward':
+            if r < g_tan_factor_edge:
+                return g_tan_factor_base
+
+            return g_tan_factor_base + g_tan_factor_growth*(r - g_tan_factor_edge)
+
+        case _:
+            return g_tan_factor_base
 
 def get_antidistortion_map_texture_based_on_minisize(coeffs: np.ndarray):
     # Only need to calculate 1/4 area by symmetry
@@ -123,7 +212,7 @@ def get_antidistortion_map_texture_based_on_minisize(coeffs: np.ndarray):
                 continue
 
             r_preset = get_r_from_pixel(x, y)
-            r_map = g_tan_factor*poly(r_preset)
+            r_map = get_tan_factor(r_preset)*poly(r_preset)
             map_bytes = np.float32(r_map / r_preset).view(np.uint32).tobytes()
             texture[y, x, 0] = map_bytes[0]
             texture[y, x, 1] = map_bytes[1]
@@ -145,7 +234,7 @@ def get_antidistortion_map_texture_based_on_balance(coeffs: np.ndarray):
         for x in range(0, texture_width):
             if g_args.split:
                 r_preset = get_r_from_pixel(2*x, y)
-                r_map = g_tan_factor*poly(r_preset)
+                r_map = get_tan_factor(r_preset)*poly(r_preset)
                 ratio = r_map / r_preset
 
                 uv = float(2*x) / float(g_args.resolution[0] - 1)
@@ -154,7 +243,7 @@ def get_antidistortion_map_texture_based_on_balance(coeffs: np.ndarray):
                     uv += 0.5
             else:
                 r_preset = get_r_from_pixel(x, y)
-                r_map = g_tan_factor*poly(r_preset)
+                r_map = get_tan_factor(r_preset)*poly(r_preset)
                 ratio = r_map / r_preset
 
                 uv = float(x) / float(g_args.resolution[0] - 1)
@@ -190,7 +279,7 @@ def get_antidistortion_map_texture_based_on_free(coeffs: np.ndarray):
         for x in range(0, texture_width):
             if g_args.split:
                 r_preset = get_r_from_pixel(2*x, y)
-                r_map = g_tan_factor*poly(r_preset)
+                r_map = get_tan_factor(r_preset)*poly(r_preset)
                 ratio = r_map / r_preset
 
                 uv = float(2*x) / float(g_args.resolution[0] - 1)
@@ -199,7 +288,7 @@ def get_antidistortion_map_texture_based_on_free(coeffs: np.ndarray):
                     uv += 0.5
             else:
                 r_preset = get_r_from_pixel(x, y)
-                r_map = g_tan_factor*poly(r_preset)
+                r_map = get_tan_factor(r_preset)*poly(r_preset)
                 ratio = r_map / r_preset
 
                 uv = float(x) / float(g_args.resolution[0] - 1)
@@ -271,14 +360,18 @@ def get_antidistortion_map_texture_based_on_free(coeffs: np.ndarray):
     return texture
 
 def get_antidistortion_map_texture(coeffs: np.ndarray):
-    if g_args.texture_model == 'minisize':
-        return get_antidistortion_map_texture_based_on_minisize(coeffs)
-    elif g_args.texture_model == 'balance':
-        return get_antidistortion_map_texture_based_on_balance(coeffs)
-    elif g_args.texture_model == 'free':
-        return get_antidistortion_map_texture_based_on_free(coeffs)
-    else:
-        return np.array([])
+    match g_args.texture_model:
+        case 'minisize':
+            return get_antidistortion_map_texture_based_on_minisize(coeffs)
+        
+        case 'balance':
+            return get_antidistortion_map_texture_based_on_balance(coeffs)
+
+        case 'free':
+            return get_antidistortion_map_texture_based_on_free(coeffs)
+
+        case _:
+            return np.array([])
 
 def save_texture(file_name: str, texture: np.ndarray):
     if not os.path.exists(SAVE_MAP_FOLDER):
@@ -327,8 +420,8 @@ if __name__ == '__main__':
 
     polyfit_coeffs = get_polyfit_coeffs()
     if polyfit_coeffs.size > 1:
-        g_tan_factor = get_tan_factor(polyfit_coeffs)
-        print('Map tan factor: %f' % (g_tan_factor))
+        set_tan_factor(polyfit_coeffs)
+        print('Map tan factor base: %f' % (g_tan_factor_base))
 
         map_texture = get_antidistortion_map_texture(polyfit_coeffs)
         if map_texture.size > 0:
