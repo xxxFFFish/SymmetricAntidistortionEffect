@@ -37,7 +37,6 @@ def parse_argument():
 
     group = parser.add_argument_group('screen parameters')
     group.add_argument('-R', '--resolution', metavar=('WIDTH', 'HEIGHT'), nargs=2, type=int, default=(1920, 1080), help='screen resolution [default: 1920 1080]')
-    group.add_argument('-P', '--pixel-pitch', metavar='', type=float, default=0.01, help='screen pixel pitch with micrometer dimension [default: 0.01]')
 
     group = parser.add_argument_group('map texture parameters')
     group.add_argument('-M', '--map-model', metavar='', type=str, choices=('keep_center', 'expand_edge', 'transition', 'expand_forward'), default='keep_center', help='map model [keep_center(default), expand_edge, transition, expand_forward]')
@@ -71,7 +70,7 @@ def get_polyfit_coeffs():
 def get_r_from_pixel(x: int, y: int):
     _x = float(x) - g_center_shift_x
     _y = float(y) - g_center_shift_y
-    return g_args.pixel_pitch*math.sqrt(_x*_x + _y*_y)
+    return math.sqrt(_x*_x + _y*_y)
 
 def get_tan_factor_based_on_keeping_center(coeffs: np.ndarray):
     poly_deriv = np.poly1d(coeffs).deriv(m=1)
@@ -409,7 +408,6 @@ if __name__ == '__main__':
     parse_argument()
 
     print('Map resolution: %dx%d' % (g_args.resolution[0], g_args.resolution[1]))
-    print('Pixel pitch: %f' % (g_args.pixel_pitch))
     print('Map model: %s' % (g_args.map_model))
     print('Texture model: %s' % (g_args.texture_model))
     print('Split: %s' % (g_args.split))

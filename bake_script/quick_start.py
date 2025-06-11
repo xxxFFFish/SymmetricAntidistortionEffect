@@ -14,7 +14,6 @@ DESTINATION_MAP_FOLDER = '../godot-app/map_texture'
 # Setting Variates
 g_screen_width = '1920'
 g_screen_height = '1080'
-g_pixel_scale = '0.006885' # Micrometer dimension.
 g_save_format = 'png'
 
 # Process Variates
@@ -30,7 +29,6 @@ def run_bake(m_model: str, t_model: str, split: bool):
             BAKE_SCRIPT,
             '-F', g_save_format,
             '-R', g_screen_width, g_screen_height,
-            '-P', g_pixel_scale,
             '-M', m_model,
             '-T', t_model,
             '-S'
@@ -41,7 +39,6 @@ def run_bake(m_model: str, t_model: str, split: bool):
             BAKE_SCRIPT,
             '-F', g_save_format,
             '-R', g_screen_width, g_screen_height,
-            '-P', g_pixel_scale,
             '-M', m_model,
             '-T', t_model
         ])

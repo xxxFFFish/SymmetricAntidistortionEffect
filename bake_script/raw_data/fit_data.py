@@ -11,6 +11,7 @@ CUTLINE = '--------------------------------'
 
 # Constants
 DATA_FILE_NAME = 'distortion_raw_data.csv'
+PIXEL_PITCH = 0.006885 # Micrometer dimension. This value comes from 'distortion_raw_data.csv'
 POLYFIT_DEGREE = 9
 RESULT_SAVE_NAME_1 = 'polyfit_coeffs_with_tan_r_to_real_r'
 RESULT_SAVE_NAME_2 = 'polyfit_coeffs_with_real_r_to_tan_r'
@@ -36,6 +37,7 @@ def get_distortion_raw_data():
 
     tan_r_array = np.tan(np.radians(field_r_array))
     real_r_array = np.sqrt(real_x_array**2 + real_y_array**2)
+    real_r_array /= PIXEL_PITCH
 
     return tan_r_array, real_r_array
 
